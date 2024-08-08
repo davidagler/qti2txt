@@ -18,6 +18,15 @@ def get_other_file_from_folder(folder_path):
 
     return files[0].name
 
+def write_to_csv(csv_file, question_details):
+    """Write question details to a CSV file."""
+    with open(csv_file, mode='w', newline='', encoding="UTF-8") as f:
+        if question_details:
+            writer = csv.DictWriter(f, fieldnames=question_details[0].keys())
+            writer.writeheader()
+            for detail in question_details:
+                writer.writerow(detail)
+    print(f"Question details saved to {csv_file}")
 
 class NamespaceStripper:
     """AI generated Class to strip namespaces from XML tags."""
@@ -200,20 +209,6 @@ def main():
     xlparser = XMLCanvasParser('stripped.xml')
     question_details = xlparser.extract_question_details()
 
-    # Extract to CSV for testing
-    csv_file = 'question_details.csv'
-
-    def write_to_csv(csv_file):
-        with open(csv_file, mode='w', newline='', encoding="UTF-8") as f:
-            if question_details:
-                writer = csv.DictWriter(f, fieldnames=question_details[0].keys())
-                writer.writeheader()
-                for detail in question_details:
-                    writer.writerow(detail)
-        print(f"Question details saved to {csv_file}")
-
-    write_to_csv(csv_file)
-
     # Let's build the quiz
     quiz_builder = QuizBuilder(tag_values, question_details)
     quiz_builder.create_quiz_header()
@@ -223,20 +218,24 @@ def main():
 
     # Next, let's test by seeing if our quiz.txt will work with text2qti
     def convert_to_qti():
-        # Validate file
         input_file = 'quiz.txt'
+
+        # Check if the file exists and Validate by extension
+        if not os.path.isfile(input_file):
+            raise FileNotFoundError(f"The file {input_file} does not exist.")
         if not input_file.endswith('.txt'):
             raise ValueError("Invalid input file format")
         
-        result = subprocess.run(['text2qti', input_file], capture_output=True, text=True)
-        if result.returncode == 0:
+        try: 
+            result = subprocess.run(['text2qti', input_file], capture_output=True, text=True)
             print("Conversion to QTI format successful.")
-        else:
+        except subprocess.CalledProcessError as e:
             print("Conversion to QTI format failed.")
-            print(result.stderr)
+            print(e.stderr)
 
-    #convert_to_qti() # Uncomment for reconvert. Used for testing
-    delete_temp_files()
+    write_to_csv(c.CSV_FILE, question_details)
+    convert_to_qti() # Uncomment for reconvert. Used for testing
 
 if __name__ == "__main__":
-    main()
+    main() 
+    delete_temp_files()
