@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from helpers import *
 import constants as c
 import csv
@@ -99,7 +99,7 @@ class XMLCanvasParser:
                     correct_choices = list(set(total_choices) - set(incorrect_choices))
                 else:
                     pass
-                print(question_type, correct_choices)
+                #print(question_type, correct_choices) # debugging
 
                 # Let's put everything in a list of dicts:
                 question_details.append({
@@ -223,7 +223,12 @@ def main():
 
     # Next, let's test by seeing if our quiz.txt will work with text2qti
     def convert_to_qti():
-        result = subprocess.run(['text2qti', 'quiz.txt'], capture_output=True, text=True)
+        # Validate file
+        input_file = 'quiz.txt'
+        if not input_file.endswith('.txt'):
+            raise ValueError("Invalid input file format")
+        
+        result = subprocess.run(['text2qti', input_file], capture_output=True, text=True)
         if result.returncode == 0:
             print("Conversion to QTI format successful.")
         else:

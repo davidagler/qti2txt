@@ -16,9 +16,8 @@ To use, copy the code, from a QTI file add the folder with two files in it (one 
 
 - Support for other question types
 - Intake of entire QTI .zip, not just a folder from the .zip file
-- Clean up code
 
 ## Requirements
 
 - Python 3.x
-- `xml.etree.ElementTree` for XML parsing.
+- `defusedxml` for XML parsing.
