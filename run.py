@@ -4,19 +4,10 @@ import constants as c
 import csv
 import subprocess
 import os
+import tempfile
+import zipfile
 from pathlib import Path
 
-def get_other_file_from_folder(folder_path):
-    """
-    Get the name of the other file in the specified folder, excluding the known file.
-    """
-    folder = Path(folder_path)
-    files = [file for file in folder.iterdir() if file.is_file() and file.name != c.QUIZ_HEADER_XML_NAME]
-
-    if len(files) < 1:
-        raise ValueError("The folder must contain at least one other file besides the known file.")
-
-    return files[0].name
 
 def write_to_csv(csv_file, question_details):
     """Write question details to a CSV file."""
@@ -47,6 +38,51 @@ class NamespaceStripper:
             elem.attrib = {self.strip_namespace(k): v for k, v in elem.attrib.items()}
         tree.write(output_file)
 
+class FileProcessor:
+    @staticmethod
+    def unzip_file(zip_path, extract_to):
+        """Unzip the file to the specified directory."""
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+
+    @staticmethod
+    def get_resource_hrefs(manifest_path):
+        """Get the href attributes from the first and second resources in the manifest."""
+        # open the imsmanifest.xml file
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file_path = tmp_file.name
+        try:
+            # Strip the namespace using NamespaceStripper
+            stripper = NamespaceStripper()
+            stripper.remove_namespace_from_file(manifest_path, tmp_file_path)
+
+            # Ensure the temporary file is closed before parsing
+            tmp_file.close()
+
+             # Debug statement to check if the file exists
+            if not os.path.exists(tmp_file_path):
+                raise FileNotFoundError(f"Temporary file {tmp_file_path} does not exist.")
+
+            # Parse the stripped XML file
+            tree = ET.parse(tmp_file_path)
+            root = tree.getroot()
+            xml_str = ET.tostring(root, encoding='unicode')
+            print("Entire XML tree:")
+            print(xml_str)
+
+            # Find resources
+            resources = root.findall('.//resource')
+            if len(resources) < 2:
+                raise ValueError("The manifest does not contain enough resources.")
+            first_href = resources[0].find('file').get('href')
+            second_href = resources[1].find('file').get('href')
+            print("Here are the refs:", first_href, second_href)
+            return first_href, second_href
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(tmp_file_path):
+                os.remove(tmp_file_path)
+    
 class XMLCanvasParser:
         '''Create quiz questions. They have a different format based on their type.'''
         def __init__(self, xml_file):
@@ -179,62 +215,87 @@ def delete_temp_files():
         print(f"Error: {e}")
 
 def main():
-    # There are two files so we will strip the namespace from both files
-    folder_path = input("Enter the path to the folder containing the QTI quiz data. This will be in the export file and contain two files: ")
-    folder = Path(folder_path)
-    QUIZ_QUESTIONS_XML_NAME = get_other_file_from_folder(folder_path)
+    # Ingest the zip file and unzip it
+    folder_path = input("Input path to QTI file (this is a .zip file): ")
 
-    # Strip Namespace from both files
-    stripper = NamespaceStripper()
-    stripper.remove_namespace_from_file(f"{folder}/{c.QUIZ_HEADER_XML_NAME}", 'output.xml')
-    stripper.remove_namespace_from_file(f"{folder}/{QUIZ_QUESTIONS_XML_NAME}", 'stripped.xml')
+    # Check if input file exists
+    if not Path(folder_path).is_file():
+        print(f"Error: The file {folder_path} does not exist.")
+        return
 
-    # Create the tree and get the root
-    tree = ET.parse('output.xml')
-    root = tree.getroot()
+    # Create a temporary directory and get the resources
+    with tempfile.TemporaryDirectory() as tmp_folder:
+        print(f"Created temporary directory at {tmp_folder}")
 
-    # Create dict to store values, load in elems, and then print to new file
-    tag_values = {}
+        # Unzip file
+        try: 
+            FileProcessor.unzip_file(folder_path, tmp_folder)
+        except Exception as e:
+            print(f"Error unzipping file: {e}")
+            return
 
-    # Iterate to get desired tags
-    for elem in root.iter():
-        if elem.tag in ['title', 'description', 'shuffle_answers', 'show_correct_answers']:  # Add more as needed 'one_question_at_a_time', "cant_go_back" 
-            tag_values[elem.tag] = elem.text
+        manifest_file = 'imsmanifest.xml'
+        manifest_path = Path(tmp_folder) / manifest_file
+        # Get the hrefs from the manifest
+        first_href, second_href = FileProcessor.get_resource_hrefs(manifest_path)
+        print(f"First resource href: {first_href}")
+        print(f"Second resource href: {second_href}")
 
-    # Clean up the quiz description
-    if 'description' in tag_values:
-        tag_values['description'] = html_to_cleantext(tag_values['description'])
+        folder = Path(folder_path)
+        QUIZ_QUESTIONS_XML_NAME = first_href
+        QUIZ_HEADER_XML_NAME = second_href
 
-    # Parse the stripped file and run the function
-    xlparser = XMLCanvasParser('stripped.xml')
-    question_details = xlparser.extract_question_details()
+        # Strip Namespace from both files
+        stripper = NamespaceStripper()
+        stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_HEADER_XML_NAME}", 'output.xml')
+        stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_QUESTIONS_XML_NAME}", 'stripped.xml')
 
-    # Let's build the quiz
-    quiz_builder = QuizBuilder(tag_values, question_details)
-    quiz_builder.create_quiz_header()
-    quiz_builder.create_quiz_questions()
+        # Create the tree and get the root
+        tree = ET.parse('output.xml')
+        root = tree.getroot()
+
+        # Create dict to store values, load in elems, and then print to new file
+        tag_values = {}
+
+        # Iterate to get desired tags
+        for elem in root.iter():
+            if elem.tag in ['title', 'description', 'shuffle_answers', 'show_correct_answers']:  # Add more as needed 'one_question_at_a_time', "cant_go_back" 
+                tag_values[elem.tag] = elem.text
+
+        # Clean up the quiz description
+        if 'description' in tag_values:
+            tag_values['description'] = html_to_cleantext(tag_values['description'])
+
+        # Parse the stripped file and run the function
+        xlparser = XMLCanvasParser('stripped.xml')
+        question_details = xlparser.extract_question_details()
+
+        # Let's build the quiz
+        quiz_builder = QuizBuilder(tag_values, question_details)
+        quiz_builder.create_quiz_header()
+        quiz_builder.create_quiz_questions()
 
     # TODO: Check if ingest allows for 1. 1.1 . or need to include function that writes 1. , 2. , 3. 
 
-    # Next, let's test by seeing if our quiz.txt will work with text2qti
-    def convert_to_qti():
-        input_file = 'quiz.txt'
+        # Next, let's test by seeing if our quiz.txt will work with text2qti
+        def convert_to_qti():
+            input_file = 'quiz.txt'
 
-        # Check if the file exists and Validate by extension
-        if not os.path.isfile(input_file):
-            raise FileNotFoundError(f"The file {input_file} does not exist.")
-        if not input_file.endswith('.txt'):
-            raise ValueError("Invalid input file format")
-        
-        try: 
-            result = subprocess.run(['text2qti', input_file], capture_output=True, text=True)
-            print("Conversion to QTI format successful.")
-        except subprocess.CalledProcessError as e:
-            print("Conversion to QTI format failed.")
-            print(e.stderr)
+            # Check if the file exists and Validate by extension
+            if not os.path.isfile(input_file):
+                raise FileNotFoundError(f"The file {input_file} does not exist.")
+            if not input_file.endswith('.txt'):
+                raise ValueError("Invalid input file format")
+            
+            try: 
+                result = subprocess.run(['text2qti', input_file], capture_output=True, text=True)
+                print("Conversion to QTI format successful.")
+            except subprocess.CalledProcessError as e:
+                print("Conversion to QTI format failed.")
+                print(e.stderr)
 
     write_to_csv(c.CSV_FILE, question_details)
-    convert_to_qti() # Uncomment for reconvert. Used for testing
+    #convert_to_qti() # Uncomment for reconvert. Used for testing
 
 if __name__ == "__main__":
     main() 

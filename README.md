@@ -4,7 +4,7 @@ This project processes QTI (Question and Test Interoperability) quiz data. It st
 
 ## Use
 
-To use, copy the code, from a QTI file add the folder with two files in it (one of which will be `assessment_meta.xml`), run the `run.py` script in the terminal, enter the file path of the folder. It should output quiz.txt and question_details.csv files. In addition, you can uncomment `convert_to_qti()` function to test whether the quiz converts back into a QTI file.
+To use, run the `run.py` script in the terminal, enter the file path of the QTI export (this will be a `.zip` file). The program will output three files: a `.csv` file and a `.txt` file. Optionally, you can uncomment the `convert_to_qti()` function to turn it back into a QTI file. This is useful for debugging.
 
 ## Features
 
@@ -15,7 +15,7 @@ To use, copy the code, from a QTI file add the folder with two files in it (one 
 ## TODO
 
 - Support for other question types
-- Intake of entire QTI .zip, not just a folder from the .zip file
+- Simple flet GUI
 
 ## Requirements
 
