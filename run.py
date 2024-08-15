@@ -166,9 +166,19 @@ class QuizBuilder:
         self.question_details = question_details
 
     # First, we will write the Title, Header, and Options to a .txt file
+
+    def get_quiz_filename(self):
+        if 'title' in self.tag_values:
+            quiz_title = f"{self.tag_values['title']}"
+            quiz_file_name = f"{quiz_title}.txt"
+            return quiz_file_name
+        else:
+            print("The quiz needs a title")
+    
     def create_quiz_header(self):
         if 'title' in self.tag_values:
-            with open('quiz.txt', 'w', encoding='utf-8') as f:
+            quiz_file_name = self.get_quiz_filename()
+            with open(quiz_file_name, 'w', encoding='utf-8') as f:
                 f.write(f"Quiz title: {self.tag_values['title']}\n")
                 f.write(f"Quiz description: {self.tag_values['description']}\n")
                 f.write(f"shuffle answers: {self.tag_values['shuffle_answers']}\n")
@@ -179,7 +189,8 @@ class QuizBuilder:
 
     # Next, let's feed in the questions
     def create_quiz_questions(self):
-        with open('quiz.txt', 'a', encoding='utf-8', newline="") as f:
+        quiz_file_name = self.get_quiz_filename()
+        with open(quiz_file_name, 'a', encoding='utf-8', newline="") as f:
             for question in self.question_details:
                 f.write(f"\n1. {question['question_text']}\n")
                 # Create the choices and identify the correct answer 
@@ -264,7 +275,11 @@ def main():
 
         # Clean up the quiz description
         if 'description' in tag_values:
-            tag_values['description'] = html_to_cleantext(tag_values['description'])
+            description = tag_values['description']
+            if description:  # Check if description is not empty or None
+                tag_values['description'] = html_to_cleantext(description)
+            else:
+                tag_values['description'] = ""
 
         # Parse the stripped file and run the function
         xlparser = XMLCanvasParser('stripped.xml')

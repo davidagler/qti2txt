@@ -8,8 +8,11 @@ def html_to_cleantext(text):
     h.body_width = 0
     h.single_line_break= True
     clean_text = h.handle(text) # convert
+    if clean_text is None:
+        return ""
     clean_text = re.sub(r'\s+', ' ', clean_text) # remove extra spaces
     return clean_text
+
 
 # Renumber text file
 
