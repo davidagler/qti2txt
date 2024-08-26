@@ -1,6 +1,8 @@
 # QTI2TEXT
 
-This project processes QTI (Question and Test Interoperability) quiz data. It strips namespaces from XML files, parses the data, and generates quiz questions in a .txt format that is compatible for converting back into a QTI file using [text2qti](https://github.com/gpoore/text2qti). I created it because I needed to pull quiz questions from a CANVAS quiz so I could edit them as plaintext files, add additional questions, and then use text2qti to reupload a new quiz. The code is a mess but it might be helpful if you are in a bind.
+This project processes QTI (Question and Test Interoperability) quiz data. It strips namespaces from XML files, parses the data, and generates quiz questions in a .txt format that is compatible for converting back into a QTI file using [text2qti](https://github.com/gpoore/text2qti). I created it because I needed to pull quiz questions from a CANVAS quiz so I could edit them as plaintext files, add additional questions, and then either (1) use text2qti to reupload a new quiz or (2) use questions in classroom exams / quizzes. 
+
+The code is a mess but it might be helpful if you are in a bind.
 
 ## Use
 
@@ -14,7 +16,8 @@ To use, run the `run.py` script in the terminal, enter the file path of the QTI 
 
 ## TODO
 
-- Support for other question types
+- Support for other question types: essay
+- Preserve Grouping (Question Banks)
 - Simple flet GUI
 
 ## Requirements
