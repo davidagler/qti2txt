@@ -15,7 +15,6 @@ def html_to_cleantext(text):
 
 
 # Renumber text file
-
 def renumber_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()

@@ -127,7 +127,8 @@ class XMLCanvasParser:
                 for response_label in item.findall(".//response_label"):
                     ident = response_label.get('ident')
                     choice_text = response_label.find(".//mattext").text
-                    choices.append({'text': choice_text, 'ident': ident})
+                    clean_choice_text = html_to_cleantext(choice_text)  # Clean the HTML from choice_text
+                    choices.append({'text': clean_choice_text, 'ident': ident})
                 
                 '''get the correct answer via its ID. In the case of True or False, only the correct answer is supplied. In the case of multi-select, wrong answers are surrounded with a "not" tag. Check size of correct choices. If it is greater than 1, then we need to identify the wrong answer. We can do this by identifying the varequal in the NOT tag and the removing it from the correct choices list.  '''
                 total_choices = []
