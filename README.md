@@ -11,12 +11,23 @@ To use, run the `run.py` script in the terminal, enter the file path of the QTI 
 ## Features
 
 - Strips namespaces from XML files.
-- Parses QTI quiz data for a limited number of question types: Multiple-Choice, True/False (as a Multiple-Choice question), and Multi-Answer questions.
+- Parses QTI quiz data for a limited number of question types:
+
+  - Multiple-Choice
+  - True/False (as a Multiple-Choice question)
+  - Multi-Answer questions
+  - Essay (as of 8/8/25)
+  - Short-answer (as of 8/8/25)
+  - fill-in-blank (processed as a short-answer question)
+
 - Generates quiz questions in a text format.
 
 ## TODO
 
-- Support for other question types: essay, fill-in-blank
+Support for other question types:
+
+- Fill in Multiple Blanks
+- Numerical Answer
 
 ## Requirements
 

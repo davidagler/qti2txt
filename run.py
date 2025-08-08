@@ -11,9 +11,18 @@ from pathlib import Path
 
 def write_to_csv(csv_file, question_details):
     """Write question details to a CSV file."""
+    if not question_details:
+        print("No question details to write to CSV")
+        return
+    
+    # because diff fields based on question types, I need to get all the keys first 
+    all_fieldnames = set()
+    for detail in question_details:
+        all_fieldnames.update(detail.keys())
+    fieldnames = sorted(all_fieldnames)
+
     with open(csv_file, mode='w', newline='', encoding="UTF-8") as f:
-        if question_details:
-            writer = csv.DictWriter(f, fieldnames=question_details[0].keys())
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for detail in question_details:
                 writer.writerow(detail)
@@ -129,44 +138,78 @@ class XMLCanvasParser:
                         question_text = html_to_cleantext(question_text)
 
                 # Multiple-choice handling. Only set up for multiple-choice questions right now. Sorry.
-                working_question_types = ["multiple_choice_question", "true_false_question", "multiple_answers_question"]
+                working_question_types = ["multiple_choice_question", "true_false_question", "multiple_answers_question", "short_answer_question", "essay_question"]
+
+                # Need to sort logic based on question_type
+
+# Short answer solutions come in this format.
+# <conditionvar>
+# <varequal respident="response1">*Hello World*</varequal>
+# <varequal respident="response1">*Hello World.*</varequal>
+# </conditionvar>
+
+## TODO: Fix logic so that short_answer writes to .txt file. 
+
                 if question_type not in working_question_types:
                     print(f"Warning. This quiz contains a {question_type}. This type of question is not currently handled by this script. Sorry.")
                     continue 
 
-                choices = []
-                for response_label in item.findall(".//response_label"):
-                    ident = response_label.get('ident')
-                    choice_text = response_label.find(".//mattext").text
-                    clean_choice_text = html_to_cleantext(choice_text)  # Clean the HTML from choice_text
-                    choices.append({'text': clean_choice_text, 'ident': ident})
+                elif question_type == "short_answer_question":
+                    correct_short_answers = []
+                    for varequal in item.findall(".//conditionvar/varequal"):
+                        if varequal.text:
+                            correct_short_answers.append(varequal.text.strip())
+                    #print("Short answer correct answers:", correct_short_answers)
 
-                '''get the correct answer via its ID. In the case of True or False, only the correct answer is supplied. In the case of multi-select, wrong answers are surrounded with a "not" tag. Check size of correct choices. If it is greater than 1, then we need to identify the wrong answer. We can do this by identifying the varequal in the NOT tag and the removing it from the correct choices list.  '''
-                total_choices = []
-                incorrect_choices =[]
-                correct_choices = []
-
-                for answer in item.iter("varequal"):
-                    total_choices.append(answer.text)
-                if len(total_choices) == 1:
-                    correct_choices.append(answer.text)
-                elif len(total_choices)>1:
-                    for wrong_answer in item.iter("not"):
-                        incorrect_choices.append(wrong_answer[0].text)
-                    correct_choices = list(set(total_choices) - set(incorrect_choices))
-                else:
+                elif question_type == "essay_question":
                     pass
-                #print(question_type, correct_choices) # debugging
 
-                # Let's put everything in a list of dicts:
-                question_details.append({
-                    #'question_id': question_id,
-                    'question_type': question_type,                
-                    'points_possible': points_possible,                
+                elif question_type in ["multiple_choice_question", "true_false_question", "multiple_answers_question"]:
+                    choices = []
+                    for response_label in item.findall(".//response_label"):
+                        ident = response_label.get('ident')
+                        choice_text = response_label.find(".//mattext").text
+                        clean_choice_text = html_to_cleantext(choice_text)  # Clean the HTML from choice_text
+                        choices.append({'text': clean_choice_text, 'ident': ident})
+
+                    '''get the correct answer via its ID. In the case of True or False, only the correct answer is supplied. In the case of multi-select, wrong answers are surrounded with a "not" tag. Check size of correct choices. If it is greater than 1, then we need to identify the wrong answer. We can do this by identifying the varequal in the NOT tag and the removing it from the correct choices list.  '''
+                    total_choices = []
+                    incorrect_choices =[]
+                    correct_choices = []
+
+                    for answer in item.iter("varequal"):
+                        total_choices.append(answer.text)
+                    if len(total_choices) == 1:
+                        correct_choices.append(answer.text)
+                    elif len(total_choices)>1:
+                        for wrong_answer in item.iter("not"):
+                            incorrect_choices.append(wrong_answer[0].text)
+                        correct_choices = list(set(total_choices) - set(incorrect_choices))
+                    else:
+                        pass
+                    #print(question_type, correct_choices) # debugging
+
+                # Build the question dictionary based on question type
+                question_dict = {
+                    'question_type': question_type,
+                    'points_possible': points_possible,
                     'question_text': question_text,
-                    'choices': choices,
-                    'correct_choices': correct_choices
-                })
+                }
+
+                # For short answer or other types, add correct_answers if available
+                if question_type == "short_answer_question":
+                    question_dict['correct_answers'] = correct_short_answers
+                    print("short_answer question answers appended")
+
+                # Add choices and correct_choices for supported types
+                elif question_type in ["multiple_choice_question", "true_false_question", "multiple_answers_question"]:
+                    question_dict['choices'] = choices
+                    question_dict['correct_choices'] = correct_choices
+
+                elif question_type in ["essay_question"]:
+                    pass
+
+                question_details.append(question_dict)
             return question_details
 
 class QuizBuilder:
@@ -224,6 +267,13 @@ class QuizBuilder:
                             f.write(f"[*] {choice['text']}\n")
                         else:
                             f.write(f"[] {choice['text']}\n")
+                elif question['question_type'] == 'short_answer_question':
+                    for answer in question['correct_answers']:
+                        f.write(f"* {answer}\n")
+                elif question['question_type'] == 'essay_question':
+                    print("There are short_answer questions")
+                    f.write(f"____\n")
+                        
                     pass
 
                 #f.write(f"{question['question_type']}\n")
