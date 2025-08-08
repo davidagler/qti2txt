@@ -19,6 +19,7 @@ To use, run the `run.py` script in the terminal, enter the file path of the QTI 
   - Essay (as of 8/8/25)
   - Short-answer (as of 8/8/25)
   - fill-in-blank (processed as a short-answer question)
+  - Fill in Multiple Blanks (note: not used in text2qti)
 
 - Generates quiz questions in a text format.
 
@@ -26,7 +27,7 @@ To use, run the `run.py` script in the terminal, enter the file path of the QTI 
 
 Support for other question types:
 
-- Fill in Multiple Blanks
+
 - Numerical Answer
 
 ## Requirements

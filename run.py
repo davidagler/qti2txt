@@ -8,7 +8,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-
 def write_to_csv(csv_file, question_details):
     """Write question details to a CSV file."""
     if not question_details:
@@ -138,7 +137,7 @@ class XMLCanvasParser:
                         question_text = html_to_cleantext(question_text)
 
                 # Multiple-choice handling. Only set up for multiple-choice questions right now. Sorry.
-                working_question_types = ["multiple_choice_question", "true_false_question", "multiple_answers_question", "short_answer_question", "essay_question"]
+                working_question_types = ["multiple_choice_question", "true_false_question", "multiple_answers_question", "short_answer_question", "essay_question", "fill_in_multiple_blanks_question"]
 
                 # Need to sort logic based on question_type
 
@@ -189,6 +188,35 @@ class XMLCanvasParser:
                         pass
                     #print(question_type, correct_choices) # debugging
 
+                # Get the num of blanks: <response_lid ident="response_number1"> in the mattext
+                # Get the ids since these will be used to x-ref the answers.
+                elif question_type in ["fill_in_multiple_blanks_question"]:
+                    blanks = {}
+                    for response_lid in item.findall(".//response_lid"):
+                        blank_ident = response_lid.get('ident')  # e.g., response_number1
+                        blank_label_elem = response_lid.find("./material/mattext") # <mattext>number1</mattext>
+                        blank_label = blank_label_elem.text if blank_label_elem is not None else blank_ident
+                        blank_choices = []
+                        for response_label in response_lid.findall(".//response_label"): 
+                            choice_ident = response_label.get('ident') #ident num in response_label
+                            mattext_elem = response_label.find(".//mattext") # the Answer
+                            choice_text = mattext_elem.text if mattext_elem is not None else ""
+                            clean_choice_text = html_to_cleantext(choice_text)
+                            blank_choices.append({'ident': choice_ident, 'text': clean_choice_text})
+                        blanks[blank_label] = blank_choices # map s blank in question to choices
+
+# blanks = {
+#     "number1": [
+#         {'ident': 'choice_1', 'text': '5'},
+#         {'ident': 'choice_2', 'text': '10'},
+#         {'ident': 'choice_3', 'text': '15'}
+#     ],
+#     "word2": [
+#         {'ident': 'choice_4', 'text': 'apple'},
+#         {'ident': 'choice_5', 'text': 'orange'}
+#     ]
+# }
+
                 # Build the question dictionary based on question type
                 question_dict = {
                     'question_type': question_type,
@@ -205,6 +233,15 @@ class XMLCanvasParser:
                 elif question_type in ["multiple_choice_question", "true_false_question", "multiple_answers_question"]:
                     question_dict['choices'] = choices
                     question_dict['correct_choices'] = correct_choices
+
+                elif question_type in ["fill_in_multiple_blanks_question"]:
+                    # not sure about how to store this data
+                    simple_blanks = {}
+                    for blank_label, choices in blanks.items():
+                        # If only one choice, just store the text, else store list of texts
+                        texts = [c['text'] for c in choices]
+                        simple_blanks[blank_label] = texts[0] if len(texts) == 1 else texts
+                    question_dict['multiple_blanks_answers'] = simple_blanks
 
                 elif question_type in ["essay_question"]:
                     pass
@@ -273,6 +310,14 @@ class QuizBuilder:
                 elif question['question_type'] == 'essay_question':
                     print("There are short_answer questions")
                     f.write(f"____\n")
+                elif question['question_type'] == 'fill_in_multiple_blanks_question':
+                    for blank_label, answers in question['multiple_blanks_answers'].items():
+                        f.write(f"* {blank_label}: ")
+                        if isinstance(answers, list):
+                            f.write("".join(str(ans) for ans in answers))
+                        else:
+                            f.write(str(answers))
+                        f.write("\n")
                         
                     pass
 
