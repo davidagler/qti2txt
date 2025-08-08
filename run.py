@@ -67,17 +67,23 @@ class FileProcessor:
             tree = ET.parse(tmp_file_path)
             root = tree.getroot()
             xml_str = ET.tostring(root, encoding='unicode')
-            print("Entire XML tree:")
+            print("Entire XML tree:") # for debugging purposes. 
             print(xml_str)
 
             # Find resources
             resources = root.findall('.//resource')
             if len(resources) < 2:
                 raise ValueError("The manifest does not contain enough resources.")
-            first_href = resources[0].find('file').get('href')
-            second_href = resources[1].find('file').get('href')
-            print("Here are the refs:", first_href, second_href)
-            return first_href, second_href
+            
+            # The manifest file will store quizzes in pairs.
+            quiz_pairs = [] 
+            for i in range(0, len(resources), 2):
+                if i + 1 < len(resources): # check if there is pair
+                    first_href = resources[i].find('file').get('href')
+                    second_href = resources[i +1].find('file').get('href')
+                    quiz_pairs.append((first_href, second_href)) # appending as tuple 
+                    print("Here are the refs:", first_href, second_href)
+            return quiz_pairs
         finally:
             # Clean up the temporary file
             if os.path.exists(tmp_file_path):
@@ -122,14 +128,19 @@ class XMLCanvasParser:
                         question_text = mattext.text
                         question_text = html_to_cleantext(question_text)
 
-                # get the choices with their ID
+                # Multiple-choice handling. Only set up for multiple-choice questions right now. Sorry.
+                working_question_types = ["multiple_choice_question", "true_false_question", "multiple_answers_question"]
+                if question_type not in working_question_types:
+                    print(f"Warning. This quiz contains a {question_type}. This type of question is not currently handled by this script. Sorry.")
+                    continue 
+
                 choices = []
                 for response_label in item.findall(".//response_label"):
                     ident = response_label.get('ident')
                     choice_text = response_label.find(".//mattext").text
                     clean_choice_text = html_to_cleantext(choice_text)  # Clean the HTML from choice_text
                     choices.append({'text': clean_choice_text, 'ident': ident})
-                
+
                 '''get the correct answer via its ID. In the case of True or False, only the correct answer is supplied. In the case of multi-select, wrong answers are surrounded with a "not" tag. Check size of correct choices. If it is greater than 1, then we need to identify the wrong answer. We can do this by identifying the varequal in the NOT tag and the removing it from the correct choices list.  '''
                 total_choices = []
                 incorrect_choices =[]
@@ -220,11 +231,18 @@ class QuizBuilder:
 # Function to delete temporary files
 def delete_temp_files():
     try:
-        os.remove('output.xml')
-        os.remove('stripped.xml')
-        print("Temporary files deleted successfully.")
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
+        temp_files = []
+        for file in os.listdir('.'):
+            if file.startswith(('output_', 'stripped_')) and file.endswith('.xml'):
+                temp_files.append(file)
+        for temp_file in temp_files:
+            try:
+                os.remove(temp_file)
+                print(f"Removed {temp_file}")
+            except FileNotFoundError:
+                pass
+    except Exception as e:
+        print(f"Error deleting temporary files: {e}")
 
 def main():
     # Ingest the zip file and unzip it
@@ -245,51 +263,71 @@ def main():
         except Exception as e:
             print(f"Error unzipping file: {e}")
             return
-
+        
+        # Get all manifest file 
         manifest_file = 'imsmanifest.xml'
+        if not manifest_file:
+            print("No quiz manifests found in the zip file. Your QTI file should have a file named 'imsmanifest.xml.")
+            return
         manifest_path = Path(tmp_folder) / manifest_file
-        # Get the hrefs from the manifest
-        first_href, second_href = FileProcessor.get_resource_hrefs(manifest_path)
-        print(f"First resource href: {first_href}")
-        print(f"Second resource href: {second_href}")
 
-        folder = Path(folder_path)
-        QUIZ_QUESTIONS_XML_NAME = first_href
-        QUIZ_HEADER_XML_NAME = second_href
+        # Get quiz pair hrefs from the manifest file
+        quiz_pairs = FileProcessor.get_resource_hrefs(manifest_path)
+        quiz_count = len(quiz_pairs)
+        print(f"There are {quiz_count} to process.")
 
-        # Strip Namespace from both files
-        stripper = NamespaceStripper()
-        stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_HEADER_XML_NAME}", 'output.xml')
-        stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_QUESTIONS_XML_NAME}", 'stripped.xml')
+        quiz_data = []
 
-        # Create the tree and get the root
-        tree = ET.parse('output.xml')
-        root = tree.getroot()
+        for q, (first_href, second_href) in enumerate(quiz_pairs, 1):
+            print(f"Processing quiz {q}/{quiz_count}.")
+            print(f"First resource href: {first_href}")
+            print(f"Second resource href: {second_href}")            
 
-        # Create dict to store values, load in elems, and then print to new file
-        tag_values = {}
+            #folder = Path(folder_path)
+            QUIZ_QUESTIONS_XML_NAME = first_href
+            QUIZ_HEADER_XML_NAME = second_href
 
-        # Iterate to get desired tags
-        for elem in root.iter():
-            if elem.tag in ['title', 'description', 'shuffle_answers', 'show_correct_answers']:  # Add more as needed 'one_question_at_a_time', "cant_go_back" 
-                tag_values[elem.tag] = elem.text
+            # Strip Namespace from both files
+            stripper = NamespaceStripper()
+            stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_HEADER_XML_NAME}", 'output.xml')
+            stripper.remove_namespace_from_file(f"{tmp_folder}/{QUIZ_QUESTIONS_XML_NAME}", 'stripped.xml')
 
-        # Clean up the quiz description
-        if 'description' in tag_values:
-            description = tag_values['description']
-            if description:  # Check if description is not empty or None
-                tag_values['description'] = html_to_cleantext(description)
-            else:
-                tag_values['description'] = ""
+            # Create the tree and get the root
+            tree = ET.parse('output.xml')
+            root = tree.getroot()
 
-        # Parse the stripped file and run the function
-        xlparser = XMLCanvasParser('stripped.xml')
-        question_details = xlparser.extract_question_details()
+            # Create dict to store values, load in elems, and then print to new file
+            tag_values = {}
 
-        # Let's build the quiz
-        quiz_builder = QuizBuilder(tag_values, question_details)
-        quiz_builder.create_quiz_header()
-        quiz_builder.create_quiz_questions()
+            # Iterate to get desired tags
+            for elem in root.iter():
+                if elem.tag in ['title', 'description', 'shuffle_answers', 'show_correct_answers']:  # Add more as needed 'one_question_at_a_time', "cant_go_back" 
+                    tag_values[elem.tag] = elem.text
+
+            # Clean up the quiz description
+            if 'description' in tag_values:
+                description = tag_values['description']
+                if description:  # Check if description is not empty or None
+                    tag_values['description'] = html_to_cleantext(description)
+                else:
+                    tag_values['description'] = ""
+
+            # Parse the stripped file and run the function
+            xlparser = XMLCanvasParser('stripped.xml')
+            question_details = xlparser.extract_question_details()
+
+            # Add quiz id to each question for CSV output
+            for detail in question_details:
+                detail['quiz_name'] = tag_values.get('title', f'Quiz_{q}')
+
+            # Let's build the quiz
+            quiz_builder = QuizBuilder(tag_values, question_details)
+            quiz_builder.create_quiz_header()
+            quiz_builder.create_quiz_questions()
+
+            # All the data for the CSV
+            quiz_data.extend(question_details)
+            print(f"Quiz {q} titled '{tag_values.get('title', 'Untitled')}' processed.")
 
     # TODO: Check if ingest allows for 1. 1.1 . or need to include function that writes 1. , 2. , 3. 
 
@@ -310,7 +348,7 @@ def main():
                 print("Conversion to QTI format failed.")
                 print(e.stderr)
 
-    write_to_csv(c.CSV_FILE, question_details)
+    write_to_csv(c.CSV_FILE, quiz_data)
     #convert_to_qti() # Uncomment for reconvert. Used for testing
 
 if __name__ == "__main__":
