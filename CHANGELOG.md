@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.4 (2025-08-16)
+## v0.0.1 (2025-08-19)
 
 - Initial release of QTI2TXT
 - Support for Canvas QTI file conversion
