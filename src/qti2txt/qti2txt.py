@@ -12,6 +12,8 @@ from pathlib import Path
 from . config_logging import startup_logger, primary_logger
 import uuid 
 import time
+import shutil
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,33 @@ def main():
             logger.warning(f"Could not find tmp files to delete")
         except Exception as e:
             logger.warning(f"Error deleting temporary files: {e}")
+
+    # Copy bundled Canvas assets so rewritten image links resolve for text2qti.
+    def copy_web_resources(tmp_folder_path, output_path):
+        source_dir = Path(tmp_folder_path) / "web_resources"
+        destination_dir = output_path / "web_resources"
+        if not source_dir.exists():
+            logger.info("No web_resources folder found in archive")
+            return
+        try:
+            shutil.copytree(source_dir, destination_dir, dirs_exist_ok=True)
+            # text2qti uses markdown parsing for local images; create encoded aliases
+            # for filenames with parentheses so markdown links can use %28/%29 paths.
+            for file_path in destination_dir.rglob("*"):
+                if not file_path.is_file():
+                    continue
+                name = file_path.name
+                if "(" not in name and ")" not in name:
+                    continue
+                encoded_name = urllib.parse.quote(name, safe=" -._")
+                if encoded_name == name:
+                    continue
+                encoded_path = file_path.with_name(encoded_name)
+                if not encoded_path.exists():
+                    shutil.copy2(file_path, encoded_path)
+            logger.info(f"Copied media assets to {destination_dir}")
+        except Exception as e:
+            logger.warning(f"Could not copy media assets from {source_dir}: {e}")
 
     # Init argparse
     def create_CLI():
@@ -130,6 +159,8 @@ def main():
         except Exception as e:
             logger.critical(f"Error unzipping QTI file: {e}")
             return
+
+        copy_web_resources(tmp_folder, output_dir)
 
         # Get manifest file
         manifest_file = "imsmanifest.xml"

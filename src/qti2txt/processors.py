@@ -33,9 +33,18 @@ class NamespaceStripper:
             tree.write(output_file)
         except ET.ParseError as e:
             logger.error(f"Issue parsing error: {e}")
+            raise Qti2txtError(f"Could not parse XML file: {input_file}") from e
 
 
 class FileProcessor:
+    @staticmethod
+    def _get_resource_file_href(resource):
+        """Return the first file href for a resource, if present."""
+        resource_file = resource.find("file")
+        if resource_file is None:
+            return None
+        return resource_file.get("href")
+
     @staticmethod
     def unzip_file(zip_path, extract_to):
         """QTI file comes as zip so let's unzip the file to the specified directory."""
@@ -44,7 +53,7 @@ class FileProcessor:
 
     @staticmethod
     def get_resource_hrefs(manifest_path):
-        """Get the href attributes from the first and second resources in the manifest."""
+        """Get `(quiz_xml_href, metadata_xml_href)` tuples from a manifest."""
         # open the imsmanifest.xml file
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file_path = tmp_file.name
@@ -71,29 +80,45 @@ class FileProcessor:
 
             # Find resources
             resources = root.findall(".//resource")
-            if len(resources) < 2:
+            if len(resources) < 1:
                 raise Qti2txtError("The manifest does not contain enough resources.")
-            
 
-            # The manifest file will store quizzes in pairs. They need to be extracted. Extracted as a tuple (first_href, second_href)
+            resources_by_id = {}
+            for resource in resources:
+                resource_id = resource.get("identifier")
+                if resource_id:
+                    resources_by_id[resource_id] = resource
+
+            # Canvas marks actual quiz payload resources with imsqti_xml* types.
             quiz_pairs = []
-            for i in range(0, len(resources), 2):
-                if i + 1 < len(resources):  # check if there is pair
-                    # null checks
-                    first_file = resources[i].find("file")
-                    second_file = resources[i + 1].find("file")
+            for resource in resources:
+                resource_type = (resource.get("type") or "").lower()
+                if "imsqti_xml" not in resource_type:
+                    continue
 
-                    if first_file is not None and second_file is not None:
-                        first_href = first_file.get("href")
-                        second_href = second_file.get("href")
-                        quiz_pairs.append(
-                            (first_href, second_href)
-                        )  # appending as tuple
-                        logger.info(f"Here are the refs: {first_href}, {second_href}")
-                    else:
-                        logger.warning(
-                            "Missing files or refs in manifest file required for Quiz extraction"
+                quiz_href = FileProcessor._get_resource_file_href(resource)
+                dependency = resource.find("dependency")
+                dependency_href = None
+                if dependency is not None:
+                    dep_id = dependency.get("identifierref")
+                    dep_resource = resources_by_id.get(dep_id)
+                    if dep_resource is not None:
+                        dependency_href = FileProcessor._get_resource_file_href(
+                            dep_resource
                         )
+
+                if quiz_href and dependency_href:
+                    quiz_pairs.append((quiz_href, dependency_href))
+                    logger.info(f"Here are the refs: {quiz_href}, {dependency_href}")
+                else:
+                    logger.warning(
+                        "Skipping quiz resource due to missing quiz/dependency XML refs"
+                    )
+
+            if not quiz_pairs:
+                raise Qti2txtError(
+                    "No quiz XML resources were found in the manifest."
+                )
 
             return quiz_pairs
         finally:
