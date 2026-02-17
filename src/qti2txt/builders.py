@@ -19,15 +19,33 @@ class QuizBuilder:
 
     # First, we will write the Title, Header, and Options to a .txt file
     def get_quiz_filename(self):
-        if "title" in self.tag_values:
-            quiz_title = self.output_dir / f"{self.tag_values['title']}".strip()
-            quiz_file_name = f"{quiz_title}.txt"
-            return quiz_file_name
-        else:
+        raw_title = self.tag_values.get("title")
+        safe_title = self.sanitize_filename_stem(raw_title)
+
+        if not raw_title:
             logger.warning(
                 "The quiz needs a title so your quiz will receive a default title."
             )
-            return "untitled_quiz.txt"
+
+        return self.output_dir / f"{safe_title}.txt"
+
+    @staticmethod
+    def sanitize_filename_stem(title):
+        """Return a safe filename stem for quiz output files."""
+        if title is None:
+            return "untitled_quiz"
+
+        # Keep visible text but remove path and platform-invalid characters.
+        safe = str(title).strip()
+        safe = re.sub(r"[\\/]+", "_", safe)
+        safe = re.sub(r"[:*?\"<>|]", "_", safe)
+        safe = re.sub(r"[\x00-\x1f\x7f]", "", safe)
+        safe = safe.strip().strip(".")
+
+        if not safe or safe in {".", ".."}:
+            return "untitled_quiz"
+
+        return safe
 
     def create_quiz_header(self):
         if "title" in self.tag_values:
