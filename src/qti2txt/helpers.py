@@ -4,6 +4,11 @@ import re
 
 # Clean up HTML
 def html_to_cleantext(html_text):
+    if html_text is None:
+        return ""
+    if not isinstance(html_text, str):
+        html_text = str(html_text)
+
     h = html2text.HTML2Text()
     h.ignore_links = False
     h.body_width = 0

@@ -34,10 +34,15 @@ class QuizBuilder:
             quiz_file_name = self.get_quiz_filename()  # returns default title if None
             with open(quiz_file_name, "w", encoding="utf-8") as f:
                 f.write(f"Quiz title: {self.tag_values['title']}\n")
-                f.write(f"Quiz description: {self.tag_values['description']}\n")
-                f.write(f"shuffle answers: {self.tag_values['shuffle_answers']}\n")
+                description = (self.tag_values.get("description") or "").strip()
+                if description:
+                    f.write(f"Quiz description: {description}\n")
                 f.write(
-                    f"show correct answers: {self.tag_values['show_correct_answers']}\n"
+                    f"shuffle answers: {self.tag_values.get('shuffle_answers', 'false')}\n"
+                )
+                f.write(
+                    "show correct answers: "
+                    f"{self.tag_values.get('show_correct_answers', 'false')}\n"
                 )
                 # TODO: Need to add if clause since one depends on the other
                 # f.write(f"one question at a time: {tag_values['one_question_at_a_time']}\n")
@@ -77,9 +82,17 @@ class QuizBuilder:
                 elif question["question_type"] == "numerical_question":
                     for answers in question["correct_answers"]:
                         if "exact" in answers and answers.get("margin", 0.0) == 0.0:
-                            f.write(f"= {answers['exact']}\n")
+                            exact = answers["exact"]
+                            if self.is_effectively_integer(exact):
+                                f.write(f"= {int(float(exact))}\n")
+                            else:
+                                f.write(f"= {self.format_number(exact)} +- 0\n")
                         elif "exact" in answers and answers.get("margin", 0.0) != 0.0:
-                            f.write(f"= {answers['exact']} +- {answers['margin']}\n")
+                            f.write(
+                                "= "
+                                f"{self.format_number(answers['exact'])} +- "
+                                f"{self.format_number(answers['margin'])}\n"
+                            )
                         elif "range" in answers:
                             f.write(f"= {answers['range']}\n")
 
@@ -110,6 +123,82 @@ class QuizBuilder:
                 if question["feedback_general"] is not None:
                     f.write(f"... {question["feedback_general"]}\n")
 
+    @staticmethod
+    def normalize_canvas_filebase_links(content):
+        """
+        Convert Canvas IMS filebase links to local paths for text2qti.
+        Example:
+        ($IMS-CC-FILEBASE$/Images/foo.png?canvas_download=1)
+        -> (web_resources/Images/foo.png)
+        """
+        filebase_pattern = re.compile(
+            r"\((?:\$IMS-CC-FILEBASE\$|%24IMS-CC-FILEBASE%24)/([^)]+)\)",
+            flags=re.IGNORECASE,
+        )
+
+        def replace_filebase_link(match):
+            relative_path = match.group(1)
+            relative_path = relative_path.split("?", 1)[0]
+            relative_path = urllib.parse.unquote(relative_path).lstrip("/")
+            if not relative_path.startswith("web_resources/"):
+                relative_path = f"web_resources/{relative_path}"
+            return f"({relative_path})"
+
+        return filebase_pattern.sub(replace_filebase_link, content)
+
+    @staticmethod
+    def sanitize_markdown_links(content):
+        """
+        Normalize markdown links/images for text2qti:
+        - unescape escaped parentheses in URLs
+        - drop unresolved html2text placeholder links
+        """
+
+        def clean_url(url):
+            url = re.sub(r"\\+([()])", r"\1", url).strip()
+            if not url.startswith(("http://", "https://")):
+                url = url.replace("(", "%28").replace(")", "%29")
+            return url
+
+        def replace_image(match):
+            alt_text = match.group(1)
+            url = clean_url(match.group(2))
+            if url.startswith("LINK.PLACEHOLDER_"):
+                return alt_text
+            return f"![{alt_text}]({url})"
+
+        def replace_link(match):
+            link_text = match.group(1)
+            url = clean_url(match.group(2))
+            if url.startswith("LINK.PLACEHOLDER_"):
+                return link_text
+            return f"[{link_text}]({url})"
+
+        # Image links first, then normal links.
+        image_pattern = r"!\[([^\]]*)\]\(((?:\\.|[^)])+)\)"
+        link_pattern = r"(?<!!)\[([^\]]*)\]\(((?:\\.|[^)])+)\)"
+        content = re.sub(image_pattern, replace_image, content)
+        content = re.sub(link_pattern, replace_link, content)
+        return content
+
+    @staticmethod
+    def format_number(value):
+        """Render numeric values without unnecessary trailing zeros."""
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+        if number.is_integer():
+            return str(int(number))
+        return format(number, "g")
+
+    @staticmethod
+    def is_effectively_integer(value):
+        try:
+            return float(value).is_integer()
+        except (TypeError, ValueError):
+            return False
+
     def convert_latex_format(self):
         """Convert Canvas LaTeX image format to dollar sign LaTeX format."""
         # TODO: This isn't ideal since I'm fixing the file after it is created. Better to do this on specific chunks that would have Latex before writing it.
@@ -121,26 +210,93 @@ class QuizBuilder:
             with open(quiz_file_name, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Pattern to match ![LaTeX: \\frac{m}{s^2}](url1)
-            latex_pattern = r"!\[LaTeX:\s*([^\]]+)\]\([^)]+\)"
-
-            def replace_latex(match):
-                latex_code = match.group(1)
-                # URL decode the LaTeX (Canvas uses double encoding)
-                latex_code = urllib.parse.unquote(latex_code)
-                latex_code = urllib.parse.unquote(latex_code)
-                # Fix double \\
-                latex_code = latex_code.replace("\\\\", "\\")
-                return f"${latex_code}$"
-
-            # Replace all LaTeX matches
-            updated_content = re.sub(latex_pattern, replace_latex, content)
+            # Replace Canvas LaTeX image markdown with inline $...$.
+            updated_content = self.replace_canvas_latex_images(content)
+            updated_content = self.normalize_canvas_filebase_links(updated_content)
+            updated_content = self.sanitize_markdown_links(updated_content)
 
             # Only rewrite if changes were made
             if updated_content != content:
                 with open(quiz_file_name, "w", encoding="utf-8") as f:
                     f.write(updated_content)
-                logger.info(f"Converted LaTeX formatting in {quiz_file_name}")
+                logger.info(
+                    f"Normalized Canvas links/LaTeX formatting in {quiz_file_name}"
+                )
 
         except Exception as e:
             logger.error(f"Error converting LaTeX format: {e}")
+
+    @staticmethod
+    def replace_canvas_latex_images(content):
+        """
+        Convert Canvas equation-image markdown entries to inline LaTeX.
+        Handles URLs with nested/escaped parentheses that regex-based matching
+        can truncate.
+        """
+        marker = "![LaTeX:"
+        output = []
+        idx = 0
+        content_len = len(content)
+
+        while True:
+            start = content.find(marker, idx)
+            if start == -1:
+                output.append(content[idx:])
+                break
+
+            output.append(content[idx:start])
+            cursor = start + len(marker)
+
+            while cursor < content_len and content[cursor].isspace():
+                cursor += 1
+
+            alt_chars = []
+            while cursor < content_len:
+                char = content[cursor]
+                if char == "\\" and cursor + 1 < content_len:
+                    alt_chars.append(char)
+                    cursor += 1
+                    alt_chars.append(content[cursor])
+                    cursor += 1
+                    continue
+                if char == "]" and cursor + 1 < content_len and content[cursor + 1] == "(":
+                    cursor += 2  # consume "]("
+                    break
+                alt_chars.append(char)
+                cursor += 1
+            else:
+                output.append(content[start:])
+                break
+
+            # Canvas equation image URLs can contain literal ')' before query
+            # args (e.g., "...)?scale=1)"). Use a delimiter-based close test.
+            found_close = False
+            while cursor < content_len:
+                char = content[cursor]
+                if char == "\\" and cursor + 1 < content_len:
+                    cursor += 2
+                    continue
+                if char == ")":
+                    next_char = content[cursor + 1] if cursor + 1 < content_len else ""
+                    if (
+                        not next_char
+                        or next_char.isspace()
+                        or next_char in ".,;:!"
+                    ):
+                        cursor += 1
+                        found_close = True
+                        break
+                cursor += 1
+
+            if not found_close:
+                output.append(content[start:])
+                break
+
+            latex_code = "".join(alt_chars).strip()
+            latex_code = urllib.parse.unquote(latex_code)
+            latex_code = urllib.parse.unquote(latex_code)
+            latex_code = latex_code.replace("\\\\", "\\")
+            output.append(f"${latex_code}$")
+            idx = cursor
+
+        return "".join(output)
