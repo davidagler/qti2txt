@@ -54,13 +54,29 @@ def main():
 
     # Copy bundled Canvas assets so rewritten image links resolve for text2qti.
     def copy_web_resources(tmp_folder_path, output_path):
-        source_dir = Path(tmp_folder_path) / "web_resources"
+        tmp_root = Path(tmp_folder_path)
         destination_dir = output_path / "web_resources"
-        if not source_dir.exists():
-            logger.info("No web_resources folder found in archive")
+        copy_sources = []
+
+        # Canvas exports commonly bundle assets in web_resources/.
+        source_web_resources = tmp_root / "web_resources"
+        if source_web_resources.exists():
+            copy_sources.append((source_web_resources, destination_dir))
+
+        # text2qti exports can bundle media directly as top-level images/ (or Images/).
+        for image_dir_name in ("images", "Images"):
+            source_images = tmp_root / image_dir_name
+            if source_images.exists():
+                copy_sources.append((source_images, destination_dir / image_dir_name))
+
+        if not copy_sources:
+            logger.info(
+                "No media asset folders found in archive (expected web_resources/ or images/)."
+            )
             return
         try:
-            shutil.copytree(source_dir, destination_dir, dirs_exist_ok=True)
+            for source_dir, target_dir in copy_sources:
+                shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
             # text2qti uses markdown parsing for local images; create encoded aliases
             # for filenames with parentheses so markdown links can use %28/%29 paths.
             for file_path in destination_dir.rglob("*"):
@@ -77,7 +93,7 @@ def main():
                     shutil.copy2(file_path, encoded_path)
             logger.info(f"Copied media assets to {destination_dir}")
         except Exception as e:
-            logger.warning(f"Could not copy media assets from {source_dir}: {e}")
+            logger.warning(f"Could not copy media assets into {destination_dir}: {e}")
 
     # Init argparse
     def create_CLI():

@@ -131,7 +131,10 @@ class QuizBuilder:
         ($IMS-CC-FILEBASE$/Images/foo.png?canvas_download=1)
         -> (web_resources/Images/foo.png)
         """
-        filebase_pattern = r"\(\$IMS-CC-FILEBASE\$/([^)]+)\)"
+        filebase_pattern = re.compile(
+            r"\((?:\$IMS-CC-FILEBASE\$|%24IMS-CC-FILEBASE%24)/([^)]+)\)",
+            flags=re.IGNORECASE,
+        )
 
         def replace_filebase_link(match):
             relative_path = match.group(1)
@@ -141,7 +144,7 @@ class QuizBuilder:
                 relative_path = f"web_resources/{relative_path}"
             return f"({relative_path})"
 
-        return re.sub(filebase_pattern, replace_filebase_link, content)
+        return filebase_pattern.sub(replace_filebase_link, content)
 
     @staticmethod
     def sanitize_markdown_links(content):
