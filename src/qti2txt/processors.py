@@ -38,12 +38,49 @@ class NamespaceStripper:
 
 class FileProcessor:
     @staticmethod
-    def _get_resource_file_href(resource):
-        """Return the first file href for a resource, if present."""
-        resource_file = resource.find("file")
-        if resource_file is None:
-            return None
-        return resource_file.get("href")
+    def _get_resource_file_hrefs(resource):
+        """Return all file hrefs for a resource."""
+        hrefs = []
+        for resource_file in resource.findall("file"):
+            href = resource_file.get("href")
+            if href:
+                hrefs.append(href)
+        return hrefs
+
+    @staticmethod
+    def _select_quiz_xml_href(hrefs):
+        """
+        Select the primary quiz XML href from a list of resource files.
+        Prefer non-metadata XML files.
+        """
+        for href in hrefs:
+            lower_href = href.lower()
+            if lower_href.endswith(".xml") and not lower_href.endswith(
+                "assessment_meta.xml"
+            ):
+                return href
+        for href in hrefs:
+            if href.lower().endswith(".xml"):
+                return href
+        return hrefs[0] if hrefs else None
+
+    @staticmethod
+    def _select_metadata_xml_href(hrefs):
+        """
+        Select the metadata XML href from a list of resource files.
+        Prefer assessment_meta.xml.
+        """
+        for href in hrefs:
+            if href.lower().endswith("assessment_meta.xml"):
+                return href
+        for href in hrefs:
+            lower_href = href.lower()
+            if lower_href.endswith(".xml") and "meta" in lower_href:
+                return href
+        for href in hrefs:
+            if href.lower().endswith(".xml"):
+                return href
+        return hrefs[0] if hrefs else None
 
     @staticmethod
     def unzip_file(zip_path, extract_to):
@@ -96,16 +133,27 @@ class FileProcessor:
                 if "imsqti_xml" not in resource_type:
                     continue
 
-                quiz_href = FileProcessor._get_resource_file_href(resource)
-                dependency = resource.find("dependency")
-                dependency_href = None
-                if dependency is not None:
+                quiz_hrefs = FileProcessor._get_resource_file_hrefs(resource)
+                quiz_href = FileProcessor._select_quiz_xml_href(quiz_hrefs)
+
+                dependency_hrefs = []
+                for dependency in resource.findall("dependency"):
                     dep_id = dependency.get("identifierref")
                     dep_resource = resources_by_id.get(dep_id)
-                    if dep_resource is not None:
-                        dependency_href = FileProcessor._get_resource_file_href(
-                            dep_resource
-                        )
+                    if dep_resource is None:
+                        continue
+                    dependency_hrefs.extend(
+                        FileProcessor._get_resource_file_hrefs(dep_resource)
+                    )
+
+                dependency_href = FileProcessor._select_metadata_xml_href(
+                    dependency_hrefs
+                )
+
+                # Fallback for exports where metadata is bundled directly with
+                # quiz XML instead of listed as a dependency resource.
+                if dependency_href is None:
+                    dependency_href = FileProcessor._select_metadata_xml_href(quiz_hrefs)
 
                 if quiz_href and dependency_href:
                     quiz_pairs.append((quiz_href, dependency_href))

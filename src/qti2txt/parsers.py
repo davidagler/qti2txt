@@ -37,6 +37,7 @@ class XMLCanvasParser:
 
         - Sections with `selection_number` export only the first N direct items.
         - Sections without `selection_number` export all direct items.
+        - Items directly under `assessment` are always included.
         """
         if self.root is None:
             return []
@@ -72,6 +73,27 @@ class XMLCanvasParser:
                     )
 
             for item in items_to_include:
+                item_ident = item.get("ident")
+                if item_ident and item_ident in seen_item_ids:
+                    continue
+                if item_ident:
+                    seen_item_ids.add(item_ident)
+                selected_items.append(item)
+
+        # Some valid QTI exports place items directly under assessment without
+        # wrapping sections; include these too.
+        for assessment in self.root.findall(".//assessment"):
+            for item in assessment.findall("./item"):
+                item_ident = item.get("ident")
+                if item_ident and item_ident in seen_item_ids:
+                    continue
+                if item_ident:
+                    seen_item_ids.add(item_ident)
+                selected_items.append(item)
+
+        # Last-resort fallback for uncommon structures.
+        if not selected_items:
+            for item in self.root.findall(".//item"):
                 item_ident = item.get("ident")
                 if item_ident and item_ident in seen_item_ids:
                     continue
