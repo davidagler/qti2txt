@@ -1,5 +1,10 @@
 # QTI2TEXT
 
+[<img src="https://badges.ws/pypi/v/qti2txt"/>](https://github.com/davidagler/qti2txt)
+[<img src="https://badges.ws/github/last-commit/davidagler/qti2txt"/>](https://github.com/davidagler/qti2txt)
+[<img src="https://badges.ws/github/l/davidagler/qti2txt"/>](https://github.com/davidagler/qti2txt)
+[<img src="https://badges.ws/github/lang/davidagler/qti2txt"/>](https://github.com/davidagler/qti2txt)
+
 qti2txt converts quizzes exported from [Canvas](https://www.instructure.com/canvas) in [QTI-format](https://en.wikipedia.org/wiki/QTI) (version 1.2) into plaintext files. This is useful if you want ownership over your quizzes, if you are moving them to a different LMS, plan to use them for a  paper exam, or edit them and reupload them using [text2qti](https://github.com/gpoore/text2qti).
 
 This project processes QTI (Question and Test Interoperability) quiz data. It strips namespaces from XML files, parses the data, and generates quiz questions in a .txt format that is *mostly* compatible with text2qti.
