@@ -1,6 +1,7 @@
 build/
 dist/
 tests/
+output_test/
 
 build_notes.md
 backtoqti.py
