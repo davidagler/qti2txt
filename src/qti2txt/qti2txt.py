@@ -158,7 +158,10 @@ def main():
             output_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Output directory created at {output_dir.resolve()}")
         except Exception as e:
-            logger.warning(f"Could not create output directory {output_dir}: {e}")
+            logger.critical(f"Could not create output directory {output_dir}: {e}")
+            raise Qti2txtError(
+                f"Could not create output directory {output_dir}"
+            ) from e
     else:
         # Default to current working directory if no output path is specified
         output_dir = Path.cwd()
@@ -180,12 +183,14 @@ def main():
 
         # Get manifest file
         manifest_file = "imsmanifest.xml"
-        if not manifest_file:
-            logger.critical(
-                "No quiz manifests found in the zip file. Your QTI file should have a file named 'imsmanifest.xml."
-            )
-            return
         manifest_path = Path(tmp_folder) / manifest_file
+        if not manifest_path.is_file():
+            logger.critical(
+                "No quiz manifest found in the zip file. Expected file: imsmanifest.xml"
+            )
+            raise Qti2txtError(
+                "No quiz manifest found in the zip file. Expected file: imsmanifest.xml"
+            )
 
         # Get quiz pair hrefs from the manifest file
         quiz_pairs = FileProcessor.get_resource_hrefs(manifest_path)
