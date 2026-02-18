@@ -12,6 +12,8 @@ from pathlib import Path
 from . config_logging import startup_logger, primary_logger
 import uuid 
 import time
+import shutil
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,49 @@ def main():
             logger.warning(f"Could not find tmp files to delete")
         except Exception as e:
             logger.warning(f"Error deleting temporary files: {e}")
+
+    # Copy bundled Canvas assets so rewritten image links resolve for text2qti.
+    def copy_web_resources(tmp_folder_path, output_path):
+        tmp_root = Path(tmp_folder_path)
+        destination_dir = output_path / "web_resources"
+        copy_sources = []
+
+        # Canvas exports commonly bundle assets in web_resources/.
+        source_web_resources = tmp_root / "web_resources"
+        if source_web_resources.exists():
+            copy_sources.append((source_web_resources, destination_dir))
+
+        # text2qti exports can bundle media directly as top-level images/ (or Images/).
+        for image_dir_name in ("images", "Images"):
+            source_images = tmp_root / image_dir_name
+            if source_images.exists():
+                copy_sources.append((source_images, destination_dir / image_dir_name))
+
+        if not copy_sources:
+            logger.info(
+                "No media asset folders found in archive (expected web_resources/ or images/)."
+            )
+            return
+        try:
+            for source_dir, target_dir in copy_sources:
+                shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
+            # text2qti uses markdown parsing for local images; create encoded aliases
+            # for filenames with parentheses so markdown links can use %28/%29 paths.
+            for file_path in destination_dir.rglob("*"):
+                if not file_path.is_file():
+                    continue
+                name = file_path.name
+                if "(" not in name and ")" not in name:
+                    continue
+                encoded_name = urllib.parse.quote(name, safe=" -._")
+                if encoded_name == name:
+                    continue
+                encoded_path = file_path.with_name(encoded_name)
+                if not encoded_path.exists():
+                    shutil.copy2(file_path, encoded_path)
+            logger.info(f"Copied media assets to {destination_dir}")
+        except Exception as e:
+            logger.warning(f"Could not copy media assets into {destination_dir}: {e}")
 
     # Init argparse
     def create_CLI():
@@ -130,6 +175,8 @@ def main():
         except Exception as e:
             logger.critical(f"Error unzipping QTI file: {e}")
             return
+
+        copy_web_resources(tmp_folder, output_dir)
 
         # Get manifest file
         manifest_file = "imsmanifest.xml"

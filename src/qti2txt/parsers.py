@@ -31,6 +31,67 @@ class XMLCanvasParser:
             self.root = None
             raise
 
+    def _iter_selected_items(self):
+        """
+        Yield question items honoring Canvas section selection rules.
+
+        - Sections with `selection_number` export only the first N direct items.
+        - Sections without `selection_number` export all direct items.
+        """
+        if self.root is None:
+            return []
+
+        selected_items = []
+        seen_item_ids = set()
+
+        for section in self.root.findall(".//section"):
+            direct_items = section.findall("./item")
+            if not direct_items:
+                continue
+
+            selection_number = None
+            selection_text = section.findtext(
+                "./selection_ordering/selection/selection_number"
+            )
+            if selection_text:
+                try:
+                    selection_number = int(selection_text.strip())
+                except ValueError:
+                    selection_number = None
+
+            if selection_number is None:
+                items_to_include = direct_items
+            else:
+                items_to_include = direct_items[:selection_number]
+                if len(direct_items) > selection_number:
+                    logger.debug(
+                        "Section '%s' has %s items; selecting first %s based on selection_number",
+                        section.get("title") or section.get("ident") or "untitled",
+                        len(direct_items),
+                        selection_number,
+                    )
+
+            for item in items_to_include:
+                item_ident = item.get("ident")
+                if item_ident and item_ident in seen_item_ids:
+                    continue
+                if item_ident:
+                    seen_item_ids.add(item_ident)
+                selected_items.append(item)
+
+        return selected_items
+
+    @staticmethod
+    def _extract_qti_metadata(item):
+        """Collect qti metadata fields into a dictionary for one item."""
+        metadata = {}
+        for field in item.findall("./itemmetadata/qtimetadata/qtimetadatafield"):
+            label = field.findtext("fieldlabel")
+            entry = field.findtext("fieldentry")
+            if label:
+                metadata[label] = entry
+        return metadata
+
 
     #def get_feedback_general(self):
 
@@ -45,37 +106,17 @@ class XMLCanvasParser:
             logger.error("XML root is None - cannot extract question details")
             return question_details
 
-        # Go through each question and ..
-        for item in self.root.findall(".//item[@title='Question']"):
-            # get the question type
-            question_type = None
-            for question in item.findall(".//qtimetadatafield"):
-                # get fieldlabel with null check
-                fieldlabel_elem = question.find("fieldlabel")
-                fieldlabel = (
-                    fieldlabel_elem.text if fieldlabel_elem is not None else None
-                )
+        # Go through each selected question item and parse details.
+        for item in self._iter_selected_items():
+            metadata = self._extract_qti_metadata(item)
 
-                if fieldlabel == "question_type":
-                    question_type = question.find("fieldentry").text
-                    break
+            # get the question type
+            question_type = metadata.get("question_type")
+            if not question_type:
+                continue
 
             # get the points possible w/ null check
-            points_possible = None
-            for points in item.findall(".//qtimetadatafield"):
-                fieldlabel_elem = points.find("fieldlabel")
-                fieldlabel = (
-                    fieldlabel_elem.text if fieldlabel_elem is not None else None
-                )
-
-                if fieldlabel == "points_possible":
-                    points_possible_elem = points.find("fieldentry")
-                    points_possible = (
-                        points_possible_elem.text
-                        if points_possible_elem is not None
-                        else None
-                    )
-                    break
+            points_possible = metadata.get("points_possible")
             
             # get the general feedback for the question <itemfeedback ident="general_fb">
             feedback_general = None
@@ -117,27 +158,103 @@ class XMLCanvasParser:
                 choices = []
                 for response_label in item.findall(".//response_label"):
                     ident = response_label.get("ident")
-                    choice_text = response_label.find(".//mattext").text
+                    mattext_elem = response_label.find(".//mattext")
+                    choice_text = None
+                    if mattext_elem is not None:
+                        choice_text = mattext_elem.text
+                        if not choice_text:
+                            choice_text = "".join(mattext_elem.itertext()).strip()
+
+                    if not choice_text:
+                        matimage_elem = response_label.find(".//matimage")
+                        if matimage_elem is not None:
+                            choice_text = (
+                                matimage_elem.get("label")
+                                or matimage_elem.get("uri")
+                                or ""
+                            )
+
+                    if choice_text is None:
+                        logger.warning(
+                            "Missing choice text for question '%s' (item %s), response '%s'",
+                            item.get("title"),
+                            item.get("ident"),
+                            ident,
+                        )
+                        choice_text = ""
+
                     clean_choice_text = html_to_cleantext(
                         choice_text
                     )  # Clean the HTML from choice_text
+                    if not clean_choice_text.strip():
+                        logger.warning(
+                            "Empty choice text for question '%s' (item %s), response '%s'",
+                            item.get("title"),
+                            item.get("ident"),
+                            ident,
+                        )
+                        clean_choice_text = "[missing choice text]"
                     choices.append({"text": clean_choice_text, "ident": ident})
 
-                """get the correct answer via its ID. In the case of True or False, only the correct answer is supplied. In the case of multi-select, wrong answers are surrounded with a "not" tag. Check size of correct choices. If it is greater than 1, then we need to identify the wrong answer. We can do this by identifying the varequal in the NOT tag and the removing it from the correct choices list.  """
+                """
+                Determine correct answers from scoring respconditions first. Some
+                quizzes include feedback-only respconditions containing varequal
+                values that should not count as correct answers.
+                """
                 total_choices = []
                 incorrect_choices = []
                 correct_choices = []
 
-                for answer in item.iter("varequal"):
-                    total_choices.append(answer.text)
+                scoring_conditions = []
+                for respcondition in item.findall(".//respcondition"):
+                    setvar = respcondition.find(".//setvar")
+                    if setvar is None:
+                        continue
+                    setvar_text = (setvar.text or "").strip()
+                    if setvar_text:
+                        try:
+                            if float(setvar_text) <= 0:
+                                continue
+                        except ValueError:
+                            # Non-numeric setvar text is uncommon; keep it.
+                            pass
+                    scoring_conditions.append(respcondition)
+
+                condition_sources = (
+                    scoring_conditions if scoring_conditions else item.findall(".//respcondition")
+                )
+
+                for source in condition_sources:
+                    for answer in source.iter("varequal"):
+                        if answer.text:
+                            total_choices.append(answer.text.strip())
+                    for wrong_answer in source.iter("not"):
+                        wrong_varequal = wrong_answer.find(".//varequal")
+                        if (
+                            wrong_varequal is not None
+                            and wrong_varequal.text is not None
+                        ):
+                            incorrect_choices.append(wrong_varequal.text.strip())
+
                 if len(total_choices) == 1:
-                    correct_choices.append(answer.text)
+                    correct_choices.append(total_choices[0])
                 elif len(total_choices) > 1:
-                    for wrong_answer in item.iter("not"):
-                        incorrect_choices.append(wrong_answer[0].text)
-                    correct_choices = list(set(total_choices) - set(incorrect_choices))
-                else:
-                    pass
+                    incorrect_set = set(incorrect_choices)
+                    correct_choices = [
+                        ident
+                        for ident in dict.fromkeys(total_choices)
+                        if ident not in incorrect_set
+                    ]
+
+                if (
+                    question_type == "multiple_choice_question"
+                    and len(correct_choices) > 1
+                ):
+                    question_type = "multiple_answers_question"
+                    logger.warning(
+                        "Normalized question type to multiple_answers_question for item %s",
+                        item.get("ident"),
+                    )
                 logger.info("Question type: %s", question_type)
                 logger.info("Correct choices: %s", correct_choices)
 
