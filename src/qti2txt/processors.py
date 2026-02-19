@@ -12,12 +12,15 @@ logger = logging.getLogger(__name__)
 
 class NamespaceStripper:
     "Returns a clean XML file w/o namespace aka url prefixing the XML tags"
+
     @staticmethod
     def strip_namespace(tag):
         """Elems in the parsed tree have a namespace. Example: <Element '{http://www.imsglobal.org/xsd/ims_qtiasiv1p2}presentation' To make these easier to deal with, check if } is in the tag, do just 1 split at }, and then take everything after the tag"""
         if "}" in tag:
-            return tag.split("}", 1)[1] # [1] rather than [0] since we want the tag rather than the namespace
-        return tag 
+            return tag.split("}", 1)[
+                1
+            ]  # [1] rather than [0] since we want the tag rather than the namespace
+        return tag
 
     def remove_namespace_from_file(self, input_file, output_file):
         """Parse the XML, strip namespaces, and write to a new file."""
@@ -111,7 +114,7 @@ class FileProcessor:
             # Parse the stripped XML file
             tree = ET.parse(tmp_file_path)
             root = tree.getroot()
-            xml_str = ET.tostring(root).decode('utf-8')
+            xml_str = ET.tostring(root).decode("utf-8")
             logger.debug("Entire XML tree:")  # for debugging purposes.
             logger.debug(xml_str)
 
@@ -153,7 +156,9 @@ class FileProcessor:
                 # Fallback for exports where metadata is bundled directly with
                 # quiz XML instead of listed as a dependency resource.
                 if dependency_href is None:
-                    dependency_href = FileProcessor._select_metadata_xml_href(quiz_hrefs)
+                    dependency_href = FileProcessor._select_metadata_xml_href(
+                        quiz_hrefs
+                    )
 
                 if quiz_href and dependency_href:
                     quiz_pairs.append((quiz_href, dependency_href))
@@ -164,9 +169,7 @@ class FileProcessor:
                     )
 
             if not quiz_pairs:
-                raise Qti2txtError(
-                    "No quiz XML resources were found in the manifest."
-                )
+                raise Qti2txtError("No quiz XML resources were found in the manifest.")
 
             return quiz_pairs
         finally:

@@ -291,7 +291,11 @@ class QuizBuilder:
                     alt_chars.append(content[cursor])
                     cursor += 1
                     continue
-                if char == "]" and cursor + 1 < content_len and content[cursor + 1] == "(":
+                if (
+                    char == "]"
+                    and cursor + 1 < content_len
+                    and content[cursor + 1] == "("
+                ):
                     cursor += 2  # consume "]("
                     break
                 alt_chars.append(char)
@@ -310,11 +314,7 @@ class QuizBuilder:
                     continue
                 if char == ")":
                     next_char = content[cursor + 1] if cursor + 1 < content_len else ""
-                    if (
-                        not next_char
-                        or next_char.isspace()
-                        or next_char in ".,;:!"
-                    ):
+                    if not next_char or next_char.isspace() or next_char in ".,;:!":
                         cursor += 1
                         found_close = True
                         break

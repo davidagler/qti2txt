@@ -9,16 +9,17 @@ import logging
 import tempfile
 import argparse
 from pathlib import Path
-from . config_logging import startup_logger, primary_logger
-import uuid 
+from .config_logging import startup_logger, primary_logger
+import uuid
 import time
 import shutil
 import urllib.parse
 
 logger = logging.getLogger(__name__)
 
+
 def main():
-    # init logging 
+    # init logging
 
     def write_to_csv(csv_file, question_details):
         """Write question details to a CSV file."""
@@ -48,7 +49,7 @@ def main():
             logger.info(f"Removed {XML_NAMESPACE_FILE}")
         except FileNotFoundError:
             pass
-            logger.warning(f"Could not find tmp files to delete")
+            logger.warning("Could not find tmp files to delete")
         except Exception as e:
             logger.warning(f"Error deleting temporary files: {e}")
 
@@ -145,12 +146,14 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     if not Path(args.folder_path).is_file():
-        logger.critical(f"Error: The file {args.folder_path} does not exist. Check the path.")
+        logger.critical(
+            f"Error: The file {args.folder_path} does not exist. Check the path."
+        )
         raise Qti2txtError(f"The file {args.folder_path} does not exist.")
     if not Path(args.folder_path).suffix.lower() == ".zip":
         logger.critical("QTI file must be a .zip file")
-        raise ValueError("QTI file must be a .zip file")        
-    
+        raise ValueError("QTI file must be a .zip file")
+
     # -o --output
     if args.output_path:
         output_dir = Path(args.output_path)
@@ -159,16 +162,13 @@ def main():
             logger.info(f"Output directory created at {output_dir.resolve()}")
         except Exception as e:
             logger.critical(f"Could not create output directory {output_dir}: {e}")
-            raise Qti2txtError(
-                f"Could not create output directory {output_dir}"
-            ) from e
+            raise Qti2txtError(f"Could not create output directory {output_dir}") from e
     else:
         # Default to current working directory if no output path is specified
         output_dir = Path.cwd()
 
     # primary logger
     primary_logger(output_dir, args.verbose)
-
 
     # Create a tmp directory, unzip the file, and get the resources
     with tempfile.TemporaryDirectory() as tmp_folder:

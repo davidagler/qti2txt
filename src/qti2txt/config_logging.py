@@ -1,28 +1,29 @@
-    
 import logging
 import sys
-from logging.handlers import RotatingFileHandler # for file handling and backups
+from logging.handlers import RotatingFileHandler  # for file handling and backups
+
 
 # Class for coloring logging
 class SimpleColorFormatter(logging.Formatter):
     # map colors ANSI
     LEVEL_COLORS = {
-        logging.DEBUG: '\033[36m',     # 10 Cyan
-        logging.INFO: '\033[32m',      # 20 Green
-        logging.WARNING: '\033[33m',   # 30 Yellow
-        logging.ERROR: '\033[31m',     # 40 Red
-        logging.CRITICAL: '\033[41m',  # 50 Red
+        logging.DEBUG: "\033[36m",  # 10 Cyan
+        logging.INFO: "\033[32m",  # 20 Green
+        logging.WARNING: "\033[33m",  # 30 Yellow
+        logging.ERROR: "\033[31m",  # 40 Red
+        logging.CRITICAL: "\033[41m",  # 50 Red
     }
-    RESET = '\033[0m'
+    RESET = "\033[0m"
 
     def format(self, record):
-        color = self.LEVEL_COLORS.get(record.levelno, '')
+        color = self.LEVEL_COLORS.get(record.levelno, "")
         # Format normally
         formatted = super().format(record)
         # Add color only if available
         if color:
-            return f"{color}{formatted}{self.RESET}" # Add color + message + reset
-        return formatted # otherwise no color
+            return f"{color}{formatted}{self.RESET}"  # Add color + message + reset
+        return formatted  # otherwise no color
+
 
 # Two-stage logging setup.
 def startup_logger():
@@ -37,12 +38,13 @@ def startup_logger():
         handlers=[ch],
     )
 
+
 def primary_logger(output_dir, verbose=False):
     """Enhanced logging setup. Initialized after the initial file checks are complete. Essentially follows the logging tut in the Python documentation: https://docs.python.org/3/howto/logging.html#logging-basic-tutorial"""
 
     # clears the startup_logger handlers
     logger = logging.getLogger()
-    for handler in logger.handlers[:]: # iterate over copy not original
+    for handler in logger.handlers[:]:  # iterate over copy not original
         logger.removeHandler(handler)
 
     level = logging.DEBUG if verbose else logging.INFO
@@ -51,13 +53,15 @@ def primary_logger(output_dir, verbose=False):
     # Formatting. Requires old %-style string formatting. For list of attributes https://docs.python.org/3/library/logging.html#logrecord-attributes
     log_output_format = "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
 
-    ch = logging.StreamHandler(sys.stdout) #sys.stderr
+    ch = logging.StreamHandler(sys.stdout)  # sys.stderr
     ch.setFormatter(SimpleColorFormatter(log_output_format))
 
     # File handler - Since we are using color and don't want ANSI codes in color codes in our log file, we'll use a separate formatter
     # add formatter to ch
     fh = RotatingFileHandler(
-        output_dir / "qti2txt.log", maxBytes=1 * 1024 * 1024, backupCount=2  # 1MB, 2 backup
+        output_dir / "qti2txt.log",
+        maxBytes=1 * 1024 * 1024,
+        backupCount=2,  # 1MB, 2 backup
     )
     fh.setFormatter(logging.Formatter(log_output_format))
 

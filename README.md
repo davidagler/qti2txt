@@ -76,6 +76,8 @@ qti2txt -f YOUR_QTI_FILE_HERE.zip -o output -v -kxml
 
 - Strips namespaces from XML files.
 - Generates quiz questions in a text format.
+- Extracts resources (e.g., imgs, gifs, etc.) from quizzes.
+- Replaces Wiris/Canvas data-mathml image tags (not raw mathml) with inline LaTeX.
 - Parses QTI quiz data for a limited number of question types:
 
   - ✅ Multiple-Choice
@@ -98,6 +100,7 @@ qti2txt -f YOUR_QTI_FILE_HERE.zip -o output -v -kxml
 - Python 3.x
 - `defusedxml` for XML parsing.
 - `html2text`
+- `mathml-to-latex>=1.0.0`
 
 ## Resources
 

@@ -2,4 +2,3 @@
 
 __author__ = "David W. Agler"
 __description__ = "Convert QTI quiz files to plain text format"
-

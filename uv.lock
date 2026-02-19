@@ -3,6 +3,15 @@ revision = 3
 requires-python = ">=3.13"
 
 [[package]]
+name = "bespon"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/48/80322750e4225bfc8023829b4405f0f3a7f7612b1578a0ec7154c26ce276/bespon-0.7.0.tar.gz", hash = "sha256:746b57c38baaea97725c155f4a2f6cee408552a0353ceeea584198d09340cfc4", size = 80291, upload-time = "2023-10-15T19:17:21.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/9c/b40279f0dbba6fa5877c652226ec499b4167a355395446dcba4b0c82a8d2/bespon-0.7.0-py3-none-any.whl", hash = "sha256:5fa231b2dee005f33b73b70811ff3f43f109cbf5235c5513b6e7b67550f26f41", size = 83360, upload-time = "2023-10-15T19:17:18.921Z" },
+]
+
+[[package]]
 name = "boolean-py"
 version = "5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -151,6 +160,15 @@ wheels = [
 ]
 
 [[package]]
+name = "markdown"
+version = "3.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/f4/69fa6ed85ae003c2378ffa8f6d2e3234662abd02c10d216c0ba96081a238/markdown-3.10.2.tar.gz", hash = "sha256:994d51325d25ad8aa7ce4ebaec003febcce822c3f8c911e3b17c52f7f589f950", size = 368805, upload-time = "2026-02-09T14:57:26.942Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/1f/77fa3081e4f66ca3576c896ae5d31c3002ac6607f9747d2e3aa49227e464/markdown-3.10.2-py3-none-any.whl", hash = "sha256:e91464b71ae3ee7afd3017d9f358ef0baf158fd9a298db92f1d4761133824c36", size = 108180, upload-time = "2026-02-09T14:57:25.787Z" },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -160,6 +178,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5b/f5/4ec618ed16cc4f8fb3b701563655a69816155e79e24a17b651541804721d/markdown_it_py-4.0.0.tar.gz", hash = "sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3", size = 73070, upload-time = "2025-08-11T12:57:52.854Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl", hash = "sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147", size = 87321, upload-time = "2025-08-11T12:57:51.923Z" },
+]
+
+[[package]]
+name = "mathml-to-latex"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/7a/ca7097fea2caccf90c7c2755c9bc3996271902742e4fe40453b833b192ad/mathml_to_latex-1.0.0.tar.gz", hash = "sha256:ba6a438526684940572d1875b4d5f2d6cb3bea52943830307d08a9fc662e4f69", size = 29382, upload-time = "2024-11-09T13:13:25.621Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/1a/20e71ad3f6a7fb4938ed03a7fbba0a42fe1e0115c5add83fcb292403ac86/mathml_to_latex-1.0.0-py3-none-any.whl", hash = "sha256:a85ec2434da774be019ed5ea32494616baabf48471b054e3567a7700ae759572", size = 32233, upload-time = "2024-11-09T13:13:24.512Z" },
 ]
 
 [[package]]
@@ -327,29 +354,33 @@ wheels = [
 
 [[package]]
 name = "qti2txt"
-version = "0.0.2"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
     { name = "html2text" },
+    { name = "mathml-to-latex" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "pip-audit" },
     { name = "pytest" },
+    { name = "text2qti" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "html2text", specifier = ">=2025.4.15" },
+    { name = "mathml-to-latex", specifier = ">=1.0.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pip-audit", specifier = ">=2.9.0" },
     { name = "pytest", specifier = ">=8.4.1" },
+    { name = "text2qti" },
 ]
 
 [[package]]
@@ -387,6 +418,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "text2qti"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bespon" },
+    { name = "markdown" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/d7/0b492f9c2466b66abfe36cbd751a04fa54c93ea72ee40cf0c1e1643bfd93/text2qti-0.7.1.tar.gz", hash = "sha256:05ede70e7db2b2650efab57f284b165b545416052b57a4aee8f5b14d9b2a990b", size = 70535, upload-time = "2023-10-29T20:17:11.26Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/49/ede6672356c383f6b25e67f26c199eaac05fe2b57ede1cf46a2dbd69560c/text2qti-0.7.1-py3-none-any.whl", hash = "sha256:319ca23dbd3a1117c42c8b2efcb4834b4c5eede3b83b0913168859dbc8ebdaba", size = 55954, upload-time = "2023-10-29T20:17:05.733Z" },
 ]
 
 [[package]]

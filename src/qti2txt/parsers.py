@@ -114,9 +114,7 @@ class XMLCanvasParser:
                 metadata[label] = entry
         return metadata
 
-
-    #def get_feedback_general(self):
-
+    # def get_feedback_general(self):
 
     """Let's identify a question node, then loop through its content. In doing so, we weill extract out the following: (1) the Question Type, (2) the Points Possible, (3) the Question Text, (4) the Choices Text and their Identifier, and (5) the Correct Answer using the Identifier, and (6) maybe the question ID (not sure if this is needed)"""
 
@@ -139,10 +137,12 @@ class XMLCanvasParser:
 
             # get the points possible w/ null check
             points_possible = metadata.get("points_possible")
-            
+
             # get the general feedback for the question <itemfeedback ident="general_fb">
             feedback_general = None
-            feedback_elem = item.find(".//itemfeedback[@ident='general_fb']/flow_mat/material/mattext")
+            feedback_elem = item.find(
+                ".//itemfeedback[@ident='general_fb']/flow_mat/material/mattext"
+            )
             if feedback_elem is not None and feedback_elem.text is not None:
                 feedback_general = html_to_cleantext(feedback_elem.text)
 
@@ -243,7 +243,9 @@ class XMLCanvasParser:
                     scoring_conditions.append(respcondition)
 
                 condition_sources = (
-                    scoring_conditions if scoring_conditions else item.findall(".//respcondition")
+                    scoring_conditions
+                    if scoring_conditions
+                    else item.findall(".//respcondition")
                 )
 
                 for source in condition_sources:
@@ -464,7 +466,7 @@ class XMLCanvasParser:
                 "question_type": question_type,
                 "points_possible": points_possible,
                 "question_text": question_text,
-                "feedback_general": feedback_general
+                "feedback_general": feedback_general,
             }
 
             # For question types without explicit choices, we can just add the question data

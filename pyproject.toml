@@ -1,6 +1,6 @@
 [project]
 name = "qti2txt"
-version = "0.0.1"
+version = "0.1.0"
 description = "Used to turn CANVAS QTI quizzes into plaintext files. Useful if you want more control over your quizzes or if you want to edit them and reupload them using text2qti."
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
