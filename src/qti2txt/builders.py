@@ -170,6 +170,7 @@ class QuizBuilder:
         Normalize markdown links/images for text2qti:
         - unescape escaped parentheses in URLs
         - drop unresolved html2text placeholder links
+        - fill empty image alt text from image filename stem
         """
 
         def clean_url(url):
@@ -178,9 +179,22 @@ class QuizBuilder:
                 url = url.replace("(", "%28").replace(")", "%29")
             return url
 
+        def infer_alt_text(url):
+            parsed = urllib.parse.urlparse(url)
+            raw_path = parsed.path or url
+            path = urllib.parse.unquote(raw_path).strip()
+            filename = path.rsplit("/", 1)[-1] if path else ""
+            if "." in filename:
+                stem = filename.rsplit(".", 1)[0]
+            else:
+                stem = filename
+            return stem or "image"
+
         def replace_image(match):
-            alt_text = match.group(1)
+            alt_text = (match.group(1) or "").strip()
             url = clean_url(match.group(2))
+            if not alt_text:
+                alt_text = infer_alt_text(url)
             if url.startswith("LINK.PLACEHOLDER_"):
                 return alt_text
             return f"![{alt_text}]({url})"
@@ -314,7 +328,26 @@ class QuizBuilder:
             latex_code = urllib.parse.unquote(latex_code)
             latex_code = urllib.parse.unquote(latex_code)
             latex_code = latex_code.replace("\\\\", "\\")
+            latex_code = QuizBuilder.normalize_latex_delimiter_escapes(latex_code)
             output.append(f"${latex_code}$")
             idx = cursor
 
         return "".join(output)
+
+    @staticmethod
+    def normalize_latex_delimiter_escapes(latex_code):
+        """
+        Canvas often emits escaped delimiter characters (\\(, \\), \\[, \\])
+        inside equation alt text. Unescape these for better Canvas import
+        compatibility after round-tripping through text2qti.
+        """
+        if not latex_code:
+            return latex_code
+
+        # Unescape bracket-style delimiters in most equation contexts.
+        latex_code = re.sub(r"\\([\(\)\[\]])", r"\1", latex_code)
+
+        # Normalize common forms with spaces after \left/\right.
+        latex_code = re.sub(r"(\\left)\s+([\(\)\[\]])", r"\1\2", latex_code)
+        latex_code = re.sub(r"(\\right)\s+([\(\)\[\]])", r"\1\2", latex_code)
+        return latex_code

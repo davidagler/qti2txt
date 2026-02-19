@@ -15,6 +15,7 @@ license-files = ["LICENSE"]
 dependencies = [
     "defusedxml>=0.7.1",
     "html2text>=2025.4.15",
+    "mathml-to-latex>=1.0.0",
 ]
 
 [project.urls]
@@ -33,5 +34,5 @@ build-backend = "uv_build"
 dev = [
     "pip-audit>=2.9.0",
     "pytest>=8.4.1",
+    "text2qti",
 ]
-
