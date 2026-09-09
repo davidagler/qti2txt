@@ -116,8 +116,7 @@ class QuizBuilder:
                             f.write(f"= {answers['range']}\n")
 
                 elif question["question_type"] == "matching_question":
-                    for answer in question["correct_answers"]:
-                        f.write("m. " + answer + "\n")
+                    f.writelines("m. " + answer + "\n" for answer in question["correct_answers"])
 
                 elif question["question_type"] == "essay_question":
                     f.write("____\n")

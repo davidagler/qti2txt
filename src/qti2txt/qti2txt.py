@@ -50,7 +50,6 @@ def main():
             XML_NAMESPACE_FILE.unlink()
             logger.info(f"Removed {XML_NAMESPACE_FILE}")
         except FileNotFoundError:
-            pass
             logger.warning("Could not find tmp files to delete")
         except Exception as e:
             logger.warning(f"Error deleting temporary files: {e}")
