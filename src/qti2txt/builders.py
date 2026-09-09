@@ -77,15 +77,13 @@ class QuizBuilder:
                     "true_false_question",
                     "multiple_choice_question",
                 ):
-                    choice_counter = 0
-                    for choice in question["choices"]:
+                    for choice_counter, choice in enumerate(question["choices"]):
                         choice_letter = chr(97 + choice_counter)
                         # Check if it is correct using ident number and write to file
                         if choice["ident"] in question["correct_choices"]:
                             f.write(f"*{choice_letter}) {choice['text']}\n")
                         else:
                             f.write(f"{choice_letter}) {choice['text']}\n")
-                        choice_counter += 1
                         # Multi-select question
 
                 elif question["question_type"] == "multiple_answers_question":

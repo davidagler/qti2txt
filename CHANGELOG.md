@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.0 (2025-01-15)
+## v0.1.0 (2026-02-18)
 
 - Extracts resources (e.g., imgs, gifs, etc.) from quizzes.
 - Replaces Wiris/Canvas `data-mathml` image tags (not raw mathml) with inline LaTeX.

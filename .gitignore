@@ -3,6 +3,8 @@ dist/
 tests/
 output_test/
 
+CHANGELOG.md
+
 build_notes.md
 backtoqti.py
 .pytest_cache

@@ -151,7 +151,7 @@ def main():
             f"Error: The file {args.folder_path} does not exist. Check the path."
         )
         raise Qti2txtError(f"The file {args.folder_path} does not exist.")
-    if not Path(args.folder_path).suffix.lower() == ".zip":
+    if Path(args.folder_path).suffix.lower() != ".zip":
         logger.critical("QTI file must be a .zip file")
         raise ValueError("QTI file must be a .zip file")
 
