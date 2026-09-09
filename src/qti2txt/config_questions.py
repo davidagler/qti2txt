@@ -7,7 +7,7 @@ class QTIConfig:
     """Configuration settings for QTI processing."""
 
     # Question types to process
-    supported_question_types: Optional[List[str]] = None
+    supported_question_types: list[str] | None = None
 
     # File settings
     default_csv_name: str = "question_details.csv"

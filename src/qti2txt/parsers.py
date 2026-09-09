@@ -1,9 +1,11 @@
 """XML parsing utilities for QTI questions."""
 
-from .helpers import html_to_cleantext
-import defusedxml.ElementTree as ET
 import logging
+
+import defusedxml.ElementTree as ET
+
 from .config_questions import question_config
+from .helpers import html_to_cleantext
 
 logger = logging.getLogger(__name__)
 

@@ -1,19 +1,21 @@
-from .helpers import html_to_cleantext
-from .processors import FileProcessor, NamespaceStripper
-from .parsers import XMLCanvasParser
-from .builders import QuizBuilder
-from .err import Qti2txtError
-import defusedxml.ElementTree as ET
+import argparse
 import csv
 import logging
-import tempfile
-import argparse
-from pathlib import Path
-from .config_logging import startup_logger, primary_logger
-import uuid
-import time
 import shutil
+import tempfile
+import time
 import urllib.parse
+import uuid
+from pathlib import Path
+
+import defusedxml.ElementTree as ET
+
+from .builders import QuizBuilder
+from .config_logging import primary_logger, startup_logger
+from .err import Qti2txtError
+from .helpers import html_to_cleantext
+from .parsers import XMLCanvasParser
+from .processors import FileProcessor, NamespaceStripper
 
 logger = logging.getLogger(__name__)
 

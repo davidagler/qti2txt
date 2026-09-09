@@ -1,8 +1,8 @@
 """Quiz building utilities for creating text output."""
 
+import logging
 import re
 import urllib.parse
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,9 @@ class QuizBuilder:
                         else:
                             f.write(f"[] {choice['text']}\n")
                 elif question["question_type"] == "short_answer_question":
-                    for answer in question["correct_answers"]:
-                        f.write(f"* {answer}\n")
+                    f.writelines(
+                        f"* {answer}\n" for answer in question["correct_answers"]
+                    )
                 elif question["question_type"] == "numerical_question":
                     for answers in question["correct_answers"]:
                         if "exact" in answers and answers.get("margin", 0.0) == 0.0:
@@ -137,7 +138,6 @@ class QuizBuilder:
                         else:
                             f.write(str(answers))
                         f.write("\n")
-                    pass
                 if question["feedback_general"] is not None:
                     f.write(f"... {question["feedback_general"]}\n")
 

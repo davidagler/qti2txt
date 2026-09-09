@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0 (2025-01-15)
+
+- Extracts resources (e.g., imgs, gifs, etc.) from quizzes.
+- Replaces Wiris/Canvas `data-mathml` image tags (not raw mathml) with inline LaTeX.
+- Improved QTI parsing and text2qti compatibility for a wider variety of Canvas exports
+
 ## v0.0.1 (2025-08-19)
 
 - Initial release of QTI2TXT

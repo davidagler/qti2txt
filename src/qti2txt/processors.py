@@ -1,10 +1,12 @@
 """File processing utilities for QTI conversion."""
 
+import logging
 import tempfile
 import zipfile
-import defusedxml.ElementTree as ET
 from pathlib import Path
-import logging
+
+import defusedxml.ElementTree as ET
+
 from .err import Qti2txtError
 
 logger = logging.getLogger(__name__)
